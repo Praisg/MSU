@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stroke Patient Profile</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .sidebar {
+            background-color: #2c3e50; /* Dark blue-gray */
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .sidebar a {
+            color: white;
+            text-decoration: none;
+            display: block;
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+        .sidebar a:hover, .sidebar a.active {
+            background-color: #34495e; /* Slightly lighter blue-gray */
+        }
+        .sidebar .nav-icon {
+            margin-right: 10px;
+            width: 20px; /* Ensure icons align */
+            text-align: center;
+        }
+        .main-content {
+            padding: 30px;
+            position: relative; /* For alert positioning */
+        }
+        .patient-card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .patient-details img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin-right: 15px;
+            vertical-align: middle;
+        }
+        .patient-details .details {
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .status-box {
+            background-color: #f8f9fa; /* Light gray */
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 10px 0;
+            text-align: center;
+            height: 100%; /* Make boxes equal height */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+         .status-box i { /* Icon styling */
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+        .status-box .btn {
+             margin-top: 15px;
+        }
+        .current-patient {
+            background-color: #28a745;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            display: inline-block;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        .assessment-time {
+            text-align: right;
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        .assessment-time p {
+            margin-bottom: 0.25rem;
+        }
+        .recording-controls {
+            background-color: #e9ecef; /* Lighter gray for controls */
+            padding: 15px;
+            border-radius: 8px;
+            margin: 25px 0;
+        }
+        .recording-controls audio {
+            width: 100%;
+            margin-top: 10px; /* Space between button and player */
+        }
+        .doctor-notes {
+            margin-top: 25px;
+        }
+        .nihss-score-value {
+            font-size: 2.5rem; /* Larger font for score */
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .clickable-box {
+            cursor: pointer;
+        }
+        /* Adjust button padding and alignment */
+        .btn i {
+            margin-right: 5px;
+        }
+         /* Style for alerts */
+        .alert-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050; /* Ensure it's above other elements */
+            min-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="alert-container" id="alertContainer"></div> <!-- Container for alerts -->
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+             <nav class="col-md-2 sidebar d-none d-md-block">
+                 <h4 class="mb-4 mt-2"><i class="fas fa-hospital me-2"></i>Stroke Unit</h4>
+                <a href="{{ url_for('dashboard') }}"><i class="nav-icon fas fa-tachometer-alt"></i>Appointments</a>
+                <a href="{{ url_for('stroke_profile') }}" class="active"><i class="nav-icon fas fa-user-injured"></i>My Patients</a>
+                <a href="#"><i class="nav-icon fas fa-envelope"></i>Messages</a>
+                <a href="#"><i class="nav-icon fas fa-gavel"></i>Legal</a>
+                <a href="#"><i class="nav-icon fas fa-shield-alt"></i>Cyber Security</a>
+                <a href="#"><i class="nav-icon fas fa-cog"></i>Settings</a>
+                <a href="#"><i class="nav-icon fas fa-question-circle"></i>Help</a>
+                 <hr class="bg-light">
+                 <a href="{{ url_for('logout') }}"><i class="nav-icon fas fa-sign-out-alt"></i>Logout</a>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="col-md-10 ms-sm-auto px-md-4 main-content">
+                <!-- Patient Selection -->
+                <div class="mb-4">
+                    <label for="patientSelect" class="form-label">Select Patient:</label>
+                    <select class="form-select w-50" id="patientSelect">
+                        <option selected value="">Choose a patient...</option>
+                         {% for patient in patients %} <!-- Assuming 'patients' is passed to template -->
+                            <option value="{{ patient.Email }}">{{ patient.First_Name }} {{ patient.Last_Name }} ({{ patient.Email }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div id="patientProfileCard" class="patient-card" style="display: none;"> <!-- Initially hidden -->
+                    <div class="row mb-4">
+                        <div class="col-md-8 patient-details">
+                            <img src="https://via.placeholder.com/50/2c3e50/FFFFFF?text=P" alt="Patient avatar" id="patientAvatar">
+                            <div class="details">
+                                <h3 class="mb-1">Selected Patient Details <span class="current-patient">Current patient</span></h3>
+                                <div>
+                                    <strong>Gender:</strong> <span id="patientGender">N/A</span>
+                                    <strong class="ms-3">Date of Birth:</strong> <span id="patientDOB">N/A</span>
+                                </div>
+                                <div>
+                                    <strong>Address:</strong> <span id="patientAddress">N/A</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 assessment-time">
+                            <h5>Assessment Time</h5>
+                            <p><strong>Start:</strong> <span id="startTime">N/A</span></p>
+                            <p><strong>End:</strong> <span id="endTime">N/A</span></p>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="status-box clickable-box" data-bs-toggle="modal" data-bs-target="#medicalHistoryModal">
+                                <i class="fas fa-notes-medical text-primary"></i>
+                                <h5>Patient Status</h5>
+                                <button class="btn btn-outline-primary"><i class="fas fa-history"></i>Medical History</button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="status-box">
+                                <i class="fas fa-heartbeat text-danger"></i>
+                                <h5>CT</h5>
+                                <button class="btn btn-outline-danger mb-2" data-bs-toggle="modal" data-bs-target="#ctResultsModal">
+                                    <i class="fas fa-search"></i> View/Add Results
+                                </button>
+                                <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#tpaEligibilityModal">
+                                    <i class="fas fa-clipboard-check"></i> Check tPA Eligibility
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <!-- Make this box clickable to open NIHSS modal -->
+                            <div class="status-box clickable-box" data-bs-toggle="modal" data-bs-target="#nihssModal">
+                                <i class="fas fa-brain text-success"></i>
+                                <h5>NIHSS Score</h5>
+                                <div class="nihss-score-value" id="nihssScoreDisplayCard">N/A</div>
+                                <small class="text-muted">Click to Assess</small>
+                                <!-- Removed refresh button, modal handles update -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="recording-controls mt-4">
+                        <h4>General Consultation</h4>
+                        <button id="audioRecordButton" class="btn btn-primary mb-2"><i class="fas fa-microphone"></i> Start Recording</button>
+                        <audio id="audioPlayer" controls class="w-100" style="display: none;"> <!-- Initially hidden -->
+                            Your browser does not support the audio element.
+                        </audio>
+                        <!-- Optional: Add button to save audio? -->
+                    </div>
+
+                    <div class="doctor-notes">
+                        <h4>Doctor Notes</h4>
+                        <textarea class="form-control" rows="4" placeholder="Enter notes here..." id="doctorNotes"></textarea>
+                        <button class="btn btn-success mt-3 float-end" onclick="saveNotes()"><i class="fas fa-save"></i> Save Notes</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- NIHSS Assessment Modal -->
+    <div class="modal fade" id="nihssModal" tabindex="-1" aria-labelledby="nihssModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="nihssModalLabel">NIHSS Assessment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="nihssForm">
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <div class="alert alert-info">
+                                    <strong>Current Assessment:</strong>
+                                    <span id="nihssScoreDisplayModal">Total NIHSS Score: 0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dynamically generated categories will go here -->
+                        <div id="nihssCategoriesContainer"></div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Assessment Notes</label>
+                            <textarea class="form-control" name="assessment_notes" rows="3" placeholder="Enter any additional observations..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" form="nihssForm" class="btn btn-primary">Save Assessment</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- End NIHSS Modal -->
+
+    <!-- Medical History Modal -->
+    <div class="modal fade" id="medicalHistoryModal" tabindex="-1" aria-labelledby="medicalHistoryModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="medicalHistoryModalLabel">Medical History for <span id="historyPatientName">Patient</span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h6>Latest Recorded History:</h6>
+                    <div id="latestMedicalHistoryDisplay" class="mb-4 p-3 bg-light rounded">
+                        <p><strong>Timestamp:</strong> <span id="historyTimestamp">N/A</span></p>
+                        <p><strong>History:</strong> <span id="historyDetails">N/A</span></p>
+                        <p><strong>Medications:</strong> <span id="historyMeds">N/A</span></p>
+                        <p><strong>Allergies:</strong> <span id="historyAllergies">N/A</span></p>
+                        <p><strong>Previous Strokes:</strong> <span id="historyPrevStrokes">N/A</span></p>
+                    </div>
+                    <hr>
+                    <h6>Add New History Entry:</h6>
+                    <form id="medicalHistoryForm">
+                        <div class="mb-3">
+                            <label for="newHistoryDetails" class="form-label">Medical History Summary</label>
+                            <textarea class="form-control" id="newHistoryDetails" name="medical_history" rows="3" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newHistoryMeds" class="form-label">Current Medications</label>
+                            <textarea class="form-control" id="newHistoryMeds" name="current_medications" rows="2"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newHistoryAllergies" class="form-label">Allergies</label>
+                            <textarea class="form-control" id="newHistoryAllergies" name="allergies" rows="2"></textarea>
+                        </div>
+                         <div class="mb-3">
+                            <label for="newHistoryPrevStrokes" class="form-label">Previous Strokes (Details/Dates)</label>
+                            <textarea class="form-control" id="newHistoryPrevStrokes" name="previous_strokes" rows="2"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" form="medicalHistoryForm" class="btn btn-primary">Save New History Entry</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- End Medical History Modal -->
+
+    <!-- CT Results Modal -->
+    <div class="modal fade" id="ctResultsModal" tabindex="-1" aria-labelledby="ctResultsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="ctResultsModalLabel">CT Scan Results for <span id="ctPatientName">Patient</span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h6>Latest Recorded CT Result:</h6>
+                     <div id="latestCtResultDisplay" class="mb-4 p-3 bg-light rounded">
+                        <p><strong>Timestamp:</strong> <span id="ctTimestamp">N/A</span></p>
+                        <p><strong>Scan Details:</strong> <span id="ctScanDetails">N/A</span></p>
+                        <p><strong>Results Summary:</strong> <span id="ctResultsSummary">N/A</span></p>
+                        <p><strong>Critical Findings:</strong> <span id="ctCriticalFindings">N/A</span></p>
+                    </div>
+                     <hr>
+                    <h6>Add New CT Scan Result:</h6>
+                    <form id="ctResultsForm">
+                        <div class="mb-3">
+                            <label for="newCtScanDetails" class="form-label">Scan Details (e.g., Contrast, Area)</label>
+                            <input type="text" class="form-control" id="newCtScanDetails" name="scan_details" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newCtResultsSummary" class="form-label">Results Summary</label>
+                            <textarea class="form-control" id="newCtResultsSummary" name="results" rows="3" required></textarea>
+                        </div>
+                         <div class="mb-3">
+                            <label for="newCtCriticalFindings" class="form-label">Critical Findings (if any)</label>
+                            <textarea class="form-control" id="newCtCriticalFindings" name="critical_findings" rows="2"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" form="ctResultsForm" class="btn btn-primary">Save New CT Result</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- End CT Results Modal -->
+
+    <!-- tPA Eligibility Check Modal (Revised for Manual Verification) -->
+    <div class="modal fade" id="tpaEligibilityModal" tabindex="-1" aria-labelledby="tpaEligibilityModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="tpaEligibilityModalLabel">tPA Criteria Verification for <span id="tpaPatientName">Patient</span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Removed overall eligibility result div -->
+                    <h5>Verification Checklist:</h5>
+                    <form id="tpaVerificationForm">
+                        <ul class="list-group">
+                            <!-- Age Verification -->
+                            <li class="list-group-item">
+                                <div class="row align-items-center">
+                                    <div class="col-md-6">Age ≥ 18 years? <small class="text-muted">(Patient Age: <span id="tpaPatientActualAge">N/A</span>)</small></div>
+                                    <div class="col-md-6 text-end">
+                                        <div class="btn-group btn-group-sm" role="group" aria-label="Age Verification">
+                                            <input type="radio" class="btn-check" name="tpaVerify_age" value="yes" id="tpaAgeYes" autocomplete="off" required>
+                                            <label class="btn btn-outline-success" for="tpaAgeYes">Yes (≥18)</label>
+                                            <input type="radio" class="btn-check" name="tpaVerify_age" value="no" id="tpaAgeNo" autocomplete="off" required>
+                                            <label class="btn btn-outline-danger" for="tpaAgeNo">No (<18)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </li>
+                            <!-- NIHSS Score Verification -->
+                            <li class="list-group-item">
+                                 <div class="row align-items-center">
+                                     <div class="col-md-6">NIHSS score ≥ 4?</div>
+                                     <div class="col-md-4">
+                                         <input type="number" class="form-control form-control-sm" id="tpaVerify_nihss_value" name="tpaVerify_nihss_value" placeholder="Enter NIHSS Score" min="0" required>
+                                     </div>
+                                      <div class="col-md-2 text-end">
+                                          <span id="tpaVerify_nihss_status" class="badge bg-secondary">Verify</span>
+                                      </div>
+                                 </div>
+                            </li>
+                             <!-- Informed Consent Verification -->
+                             <li class="list-group-item">
+                                <div class="row align-items-center">
+                                    <div class="col-md-6">Informed Consent Provided?</div>
+                                    <div class="col-md-6 text-end">
+                                        <div class="btn-group btn-group-sm" role="group" aria-label="Consent Verification">
+                                            <input type="radio" class="btn-check" name="tpaVerify_consent" value="yes" id="tpaConsentYes" autocomplete="off" required>
+                                            <label class="btn btn-outline-success" for="tpaConsentYes">Yes</label>
+                                            <input type="radio" class="btn-check" name="tpaVerify_consent" value="no" id="tpaConsentNo" autocomplete="off" required>
+                                            <label class="btn btn-outline-danger" for="tpaConsentNo">No</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </li>
+                             <!-- INR Verification -->
+                            <li class="list-group-item">
+                                 <div class="row align-items-center">
+                                     <div class="col-md-6">INR ≤ 1.7?</div>
+                                     <div class="col-md-4">
+                                         <input type="number" step="0.1" class="form-control form-control-sm" id="tpaVerify_inr_value" name="tpaVerify_inr_value" placeholder="Enter INR" min="0">
+                                     </div>
+                                      <div class="col-md-2 text-end">
+                                           <span id="tpaVerify_inr_status" class="badge bg-secondary">Verify</span>
+                                      </div>
+                                 </div>
+                            </li>
+                            <!-- Vital Signs Verification -->
+                            <li class="list-group-item">
+                                <div class="row align-items-center">
+                                    <div class="col-md-6">Heart Rate (60-100 bpm)?</div>
+                                     <div class="col-md-4">
+                                         <input type="number" class="form-control form-control-sm" id="tpaVerify_hr_value" name="tpaVerify_hr_value" placeholder="Enter HR" min="0">
+                                     </div>
+                                     <div class="col-md-2 text-end">
+                                          <span id="tpaVerify_hr_status" class="badge bg-secondary">Verify</span>
+                                      </div>
+                                </div>
+                            </li>
+                             <li class="list-group-item">
+                                <div class="row align-items-center">
+                                    <div class="col-md-6">Oxygen Saturation (≥ 95%)?</div>
+                                    <div class="col-md-4">
+                                         <input type="number" class="form-control form-control-sm" id="tpaVerify_o2_value" name="tpaVerify_o2_value" placeholder="Enter O2 Sat %" min="0" max="100">
+                                     </div>
+                                      <div class="col-md-2 text-end">
+                                          <span id="tpaVerify_o2_status" class="badge bg-secondary">Verify</span>
+                                      </div>
+                                </div>
+                            </li>
+                            <!-- Reminder for Other Criteria -->
+                             <li class="list-group-item d-flex justify-content-between align-items-center list-group-item-warning">
+                               Verify Other Exclusion Criteria Manually (Hemorrhage, BP, Glucose etc.)
+                                <span class="badge bg-warning text-dark">Required</span>
+                            </li>
+                        </ul>
+                         <p class="mt-3 text-muted small">Confirm each criterion based on clinical assessment and available data. Critical vital signs will trigger alerts.</p>
+                    </form> <!-- Close the form -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <!-- Optional: Add a button to explicitly log/save the verification status -->
+                    <!-- <button type="button" class="btn btn-primary" onclick="logVerification()">Log Verification</button> -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- End tPA Modal -->
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const patientSelect = document.getElementById('patientSelect');
+        const patientProfileCard = document.getElementById('patientProfileCard');
+        const nihssModalElement = document.getElementById('nihssModal');
+        const nihssForm = document.getElementById('nihssForm');
+        const nihssScoreDisplayModal = document.getElementById('nihssScoreDisplayModal');
+        const nihssScoreDisplayCard = document.getElementById('nihssScoreDisplayCard');
+        const nihssCategoriesContainer = document.getElementById('nihssCategoriesContainer');
+        const audioRecordButton = document.getElementById('audioRecordButton');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const alertContainer = document.getElementById('alertContainer');
+
+        // Add constants for new Modals and Forms
+        const medicalHistoryModalElement = document.getElementById('medicalHistoryModal');
+        const ctResultsModalElement = document.getElementById('ctResultsModal');
+        const medicalHistoryForm = document.getElementById('medicalHistoryForm');
+        const ctResultsForm = document.getElementById('ctResultsForm');
+        const latestMedicalHistoryDisplay = document.getElementById('latestMedicalHistoryDisplay');
+        const latestCtResultDisplay = document.getElementById('latestCtResultDisplay');
+        const tpaEligibilityModalElement = document.getElementById('tpaEligibilityModal');
+        const tpaVerificationForm = document.getElementById('tpaVerificationForm');
+
+        // Input/Status elements for tPA modal
+        const tpaPatientActualAge = document.getElementById('tpaPatientActualAge');
+        const tpaNihssInput = document.getElementById('tpaVerify_nihss_value');
+        const tpaNihssStatus = document.getElementById('tpaVerify_nihss_status');
+        const tpaInrInput = document.getElementById('tpaVerify_inr_value');
+        const tpaInrStatus = document.getElementById('tpaVerify_inr_status');
+        const tpaHrInput = document.getElementById('tpaVerify_hr_value');
+        const tpaHrStatus = document.getElementById('tpaVerify_hr_status');
+        const tpaO2Input = document.getElementById('tpaVerify_o2_value');
+        const tpaO2Status = document.getElementById('tpaVerify_o2_status');
+
+        // Define NIHSS categories (as per provided JS)
+        const nihssCategories = [
+            { name: 'Level of Consciousness', key: 'level_of_consciousness', max: 3, options: ['0 - Alert', '1 - Drowsy', '2 - Stuporous', '3 - Coma'] },
+            { name: 'LOC Questions', key: 'loc_questions', max: 2, options: ['0 - Answers both correctly', '1 - Answers one correctly', '2 - Answers neither correctly'] },
+            { name: 'LOC Commands', key: 'loc_commands', max: 2, options: ['0 - Performs both correctly', '1 - Performs one correctly', '2 - Performs neither correctly'] },
+            { name: 'Best Gaze', key: 'best_gaze', max: 2, options: ['0 - Normal', '1 - Partial gaze palsy', '2 - Forced deviation'] },
+            { name: 'Visual', key: 'visual', max: 3, options: ['0 - No visual loss', '1 - Partial hemianopia', '2 - Complete hemianopia', '3 - Bilateral hemianopia'] },
+            { name: 'Facial Palsy', key: 'facial_palsy', max: 3, options: ['0 - Normal', '1 - Minor paralysis', '2 - Partial paralysis', '3 - Complete paralysis'] },
+            { name: 'Motor Arm Left', key: 'motor_arm_left', max: 4, options: ['0 - No drift', '1 - Drift', '2 - Some effort against gravity', '3 - No effort against gravity', '4 - No movement'] },
+            { name: 'Motor Arm Right', key: 'motor_arm_right', max: 4, options: ['0 - No drift', '1 - Drift', '2 - Some effort against gravity', '3 - No effort against gravity', '4 - No movement'] },
+            { name: 'Motor Leg Left', key: 'motor_leg_left', max: 4, options: ['0 - No drift', '1 - Drift', '2 - Some effort against gravity', '3 - No effort against gravity', '4 - No movement'] },
+            { name: 'Motor Leg Right', key: 'motor_leg_right', max: 4, options: ['0 - No drift', '1 - Drift', '2 - Some effort against gravity', '3 - No effort against gravity', '4 - No movement'] },
+            { name: 'Limb Ataxia', key: 'limb_ataxia', max: 2, options: ['0 - Absent', '1 - Present in one limb', '2 - Present in two limbs'] },
+            { name: 'Sensory', key: 'sensory', max: 2, options: ['0 - Normal', '1 - Mild-to-moderate loss', '2 - Severe-to-total loss'] },
+            { name: 'Best Language', key: 'best_language', max: 3, options: ['0 - No aphasia', '1 - Mild-to-moderate aphasia', '2 - Severe aphasia', '3 - Mute / global aphasia'] },
+            { name: 'Dysarthria', key: 'dysarthria', max: 2, options: ['0 - Normal articulation', '1 - Mild-to-moderate dysarthria', '2 - Severe / unintelligible'] },
+            { name: 'Extinction and Inattention', key: 'extinction_inattention', max: 2, options: ['0 - No abnormality', '1 - Visual, tactile, auditory, spatial, or personal inattention', '2 - Profound hemi-inattention or extinction'] }
+        ];
+
+        // Generate NIHSS form fields dynamically
+        function generateNIHSSFormFields() {
+            nihssCategoriesContainer.innerHTML = ''; // Clear previous fields
+            nihssCategories.forEach(cat => {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'mb-3';
+                const label = document.createElement('label');
+                label.className = 'form-label';
+                label.textContent = `${cat.name}`; // Removed index number for simplicity
+                groupDiv.appendChild(label);
+
+                const btnGroup = document.createElement('div');
+                btnGroup.className = 'btn-group w-100';
+                btnGroup.setAttribute('role', 'group');
+
+                cat.options.forEach((optionText, index) => {
+                    const value = index;
+                    const inputId = `${cat.key}_${value}`;
+                    const input = document.createElement('input');
+                    input.type = 'radio';
+                    input.className = 'btn-check';
+                    input.name = cat.key;
+                    input.value = value;
+                    input.id = inputId;
+                    input.required = true; // Make selection mandatory
+
+                    const labelBtn = document.createElement('label');
+                    labelBtn.className = 'btn btn-outline-primary';
+                    labelBtn.setAttribute('for', inputId);
+                    labelBtn.textContent = optionText;
+
+                    btnGroup.appendChild(input);
+                    btnGroup.appendChild(labelBtn);
+                });
+                groupDiv.appendChild(btnGroup);
+                nihssCategoriesContainer.appendChild(groupDiv);
+            });
+        }
+        generateNIHSSFormFields(); // Generate fields on page load
+
+        // Function to calculate NIHSS score from the modal form
+        function calculateNIHSSScoreFromModal() {
+            let totalScore = 0;
+            const formData = new FormData(nihssForm);
+            for (const value of formData.values()) {
+                // Ensure we are summing up numerical values from radio buttons, ignore text notes
+                 if (!isNaN(parseInt(value))) {
+                    totalScore += parseInt(value);
+                }
+            }
+            return totalScore;
+        }
+
+        // Update NIHSS score display in the modal in real-time
+        nihssForm.addEventListener('change', function(e) {
+            if (e.target.type === 'radio') {
+                const totalScore = calculateNIHSSScoreFromModal();
+                nihssScoreDisplayModal.textContent = `Total NIHSS Score: ${totalScore}`;
+            }
+        });
+
+        // Handle NIHSS form submission
+        nihssForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const selectedEmail = patientSelect.value;
+            if (!selectedEmail || selectedEmail === '') {
+                showAlert('Please select a patient first.', 'danger');
+                return;
+            }
+
+            const formData = new FormData(nihssForm);
+            const assessmentData = {};
+            formData.forEach((value, key) => {
+                assessmentData[key] = value;
+            });
+            assessmentData['patient_email'] = selectedEmail;
+            assessmentData['nihss_score_total'] = calculateNIHSSScoreFromModal(); // Add total score
+            assessmentData['timestamp'] = new Date().toISOString(); // Add timestamp
+
+            // TODO: Add Start/End Time capture if needed
+            assessmentData['start_time'] = document.getElementById('startTime').textContent; // Get from main display for now
+            assessmentData['end_time'] = new Date().toLocaleTimeString(); // Use current time as end time
+
+            console.log("Submitting NIHSS Data:", assessmentData);
+
+            fetch('/api/save_nihss', { // Use the new API endpoint
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(assessmentData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Update the UI score display on the main card
+                    nihssScoreDisplayCard.textContent = assessmentData['nihss_score_total'];
+                    document.getElementById('endTime').textContent = assessmentData['end_time']; // Update end time display
+                    // Close the modal
+                    const modalInstance = bootstrap.Modal.getInstance(nihssModalElement);
+                    if(modalInstance) modalInstance.hide();
+                    // Show success message
+                    showAlert('NIHSS assessment saved successfully', 'success');
+                } else {
+                    showAlert(`Failed to save NIHSS assessment: ${data.message}`, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert(`An error occurred while saving the assessment: ${error.message}`, 'danger');
+            });
+        });
+
+
+        patientSelect.addEventListener('change', function() {
+            const selectedEmail = this.value;
+            if (selectedEmail && selectedEmail !== '') {
+                loadPatientProfile(selectedEmail);
+                patientProfileCard.style.display = 'block'; // Show the card
+            } else {
+                patientProfileCard.style.display = 'none'; // Hide the card if no patient is selected
+                resetProfileCard(); // Clear card details
+            }
+        });
+
+        function resetProfileCard() {
+            document.getElementById('patientGender').textContent = 'N/A';
+            document.getElementById('patientDOB').textContent = 'N/A';
+            document.getElementById('patientAddress').textContent = 'N/A';
+            document.getElementById('startTime').textContent = 'N/A';
+            document.getElementById('endTime').textContent = 'N/A';
+            nihssScoreDisplayCard.textContent = 'N/A';
+            document.getElementById('doctorNotes').value = '';
+            // Reset NIHSS modal form if needed
+            nihssForm.reset();
+            nihssScoreDisplayModal.textContent = 'Total NIHSS Score: 0';
+             // Hide audio player
+            audioPlayer.style.display = 'none';
+            audioPlayer.src = '';
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+            }
+             audioRecordButton.textContent = 'Start Recording';
+            audioRecordButton.classList.remove('btn-danger');
+            audioRecordButton.classList.add('btn-primary');
+            // Also reset history and CT modal displays
+            resetModalDisplay('history');
+            resetModalDisplay('ct');
+            currentPatientData = null;
+            // Reset tPA modal display
+            resetTpaVerificationModal();
+        }
+
+        async function loadPatientProfile(email) {
+            console.log(`Loading profile for: ${email}`);
+            resetProfileCard(); // Reset card before loading new data
+            try {
+                const response = await fetch(`/api/stroke_patient_data/${email}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    currentPatientData = result.data; // Store fetched data globally
+                    console.log('Stored patient data:', currentPatientData);
+                    const data = result.data;
+                    console.log('Received data:', data);
+                    document.getElementById('patientGender').textContent = data.details?.Sex || 'N/A';
+                    document.getElementById('patientDOB').textContent = data.details?.DOB || 'N/A';
+                    document.getElementById('patientAddress').textContent = data.details?.Address || 'N/A';
+
+                    const latestAssessment = data.assessments?.[0];
+                    document.getElementById('startTime').textContent = latestAssessment?.Start_Time || new Date().toLocaleTimeString(); // Default start time to now if none
+                    document.getElementById('endTime').textContent = latestAssessment?.End_Time || 'N/A';
+                    nihssScoreDisplayCard.textContent = latestAssessment?.NIHSS_Score || 'N/A'; // Display score on card
+
+                    // Populate latest Note
+                    const latestNote = data.notes?.[0];
+                    document.getElementById('doctorNotes').value = latestNote?.Notes || '';
+
+                    // Update modal titles with patient name
+                    const patientName = `${data.details?.First_Name || ''} ${data.details?.Last_Name || ''}`.trim() || email;
+                    document.getElementById('historyPatientName').textContent = patientName;
+                    document.getElementById('ctPatientName').textContent = patientName;
+                    document.getElementById('tpaPatientName').textContent = patientName;
+
+                    // Populate latest History and CT displays
+                    populateModalDisplay('history', data.history?.[0]);
+                    populateModalDisplay('ct', data.ct_results?.[0]);
+
+                    // Pre-run eligibility check when modal is shown
+                    if(tpaEligibilityModalElement) {
+                        tpaEligibilityModalElement.addEventListener('show.bs.modal', function() {
+                            resetTpaVerificationModal();
+                            if (!currentPatientData || !currentPatientData.details) {
+                                showAlert('Patient data not loaded. Cannot pre-fill verification.', 'warning');
+                                return;
+                            }
+                            const details = currentPatientData.details;
+                            const latestAssessment = currentPatientData.assessments?.[0];
+
+                            // Pre-fill Age display (Age check itself is manual via radio)
+                            if (details.DOB && details.DOB !== 'N/A') {
+                                try {
+                                    const dob = new Date(details.DOB);
+                                    const ageDiffMs = Date.now() - dob.getTime();
+                                    const ageDate = new Date(ageDiffMs);
+                                    const age = Math.abs(ageDate.getUTCFullYear() - 1970);
+                                    tpaPatientActualAge.textContent = age;
+                                } catch(e) { tpaPatientActualAge.textContent = 'Error'; }
+                            } else {
+                                tpaPatientActualAge.textContent = 'N/A';
+                            }
+
+                            // Pre-fill NIHSS score input if available
+                            if (latestAssessment && latestAssessment.NIHSS_Score !== undefined && latestAssessment.NIHSS_Score !== 'N/A'){
+                                tpaNihssInput.value = latestAssessment.NIHSS_Score;
+                                checkTpaInputStatus(tpaNihssInput, tpaNihssStatus, score => score >= 4, '≥ 4', '< 4');
+                            }
+
+                             // Pre-fill Vitals if available
+                             if (latestAssessment && latestAssessment.HR !== undefined && latestAssessment.HR !== 'N/A') {
+                                 tpaHrInput.value = latestAssessment.HR;
+                                 checkTpaInputStatus(tpaHrInput, tpaHrStatus, hr => hr >= 60 && hr <= 100, 'Normal', 'Abnormal');
+                                 if (!(parseInt(latestAssessment.HR) >= 60 && parseInt(latestAssessment.HR) <= 100)) {
+                                     showAlert(`Critical HR (${latestAssessment.HR}) detected on load.`, 'warning');
+                                 }
+                             }
+                             if (latestAssessment && latestAssessment.O2_Sat !== undefined && latestAssessment.O2_Sat !== 'N/A') {
+                                  tpaO2Input.value = latestAssessment.O2_Sat;
+                                  checkTpaInputStatus(tpaO2Input, tpaO2Status, o2 => o2 >= 95, 'Normal', 'Low');
+                                  if (!(parseInt(latestAssessment.O2_Sat) >= 95)) {
+                                      showAlert(`Critical O2 Sat (${latestAssessment.O2_Sat}%) detected on load.`, 'warning');
+                                  }
+                             }
+                        });
+                    }
+                } else {
+                    console.error('Failed to load patient data:', result.message);
+                    showAlert(`Error loading patient data: ${result.message}`, 'danger');
+                    patientProfileCard.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error fetching patient profile:', error);
+                showAlert(`Error fetching patient profile: ${error.message}`, 'danger');
+                 patientProfileCard.style.display = 'none';
+            }
+        }
+
+        // --- Audio Recording Functionality ---
+        let mediaRecorder;
+        let audioChunks = [];
+
+        audioRecordButton.addEventListener('click', function() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                audioRecordButton.innerHTML = '<i class="fas fa-microphone"></i> Start Recording';
+                audioRecordButton.classList.remove('btn-danger');
+                audioRecordButton.classList.add('btn-primary');
+            } else {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(stream => {
+                        mediaRecorder = new MediaRecorder(stream);
+                        audioChunks = [];
+                        audioPlayer.style.display = 'none'; // Hide player while recording
+                        audioPlayer.src = '';
+
+                        mediaRecorder.addEventListener('dataavailable', event => {
+                            audioChunks.push(event.data);
+                        });
+
+                        mediaRecorder.addEventListener('stop', () => {
+                            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' }); // Or 'audio/webm' etc.
+                            const audioUrl = URL.createObjectURL(audioBlob);
+                            audioPlayer.src = audioUrl;
+                            audioPlayer.style.display = 'block'; // Show player
+                            // Get the stream tracks and stop them to release the microphone
+                            stream.getTracks().forEach(track => track.stop());
+                            // TODO: Add logic here to potentially save the audioBlob to the server
+                            // e.g., create FormData, append blob, fetch POST request
+                        });
+
+                        mediaRecorder.start();
+                        audioRecordButton.innerHTML = '<i class="fas fa-stop"></i> Stop Recording';
+                        audioRecordButton.classList.remove('btn-primary');
+                        audioRecordButton.classList.add('btn-danger');
+                    })
+                    .catch(error => {
+                        console.error('Error accessing microphone:', error);
+                        showAlert(`Error accessing microphone: ${error.message}`, 'danger');
+                    });
+            }
+        });
+        // --- End Audio Recording ---
+
+        // --- Modal Display Helpers ---
+        function populateModalDisplay(type, data) {
+            resetModalDisplay(type); // Clear previous data first
+            if (!data) return; // Exit if no data
+
+            if (type === 'history') {
+                document.getElementById('historyTimestamp').textContent = data.Timestamp || 'N/A';
+                document.getElementById('historyDetails').textContent = data.Medical_History || 'N/A';
+                document.getElementById('historyMeds').textContent = data.Current_Medications || 'N/A';
+                document.getElementById('historyAllergies').textContent = data.Allergies || 'N/A';
+                document.getElementById('historyPrevStrokes').textContent = data.Previous_Strokes || 'N/A';
+            } else if (type === 'ct') {
+                document.getElementById('ctTimestamp').textContent = data.Timestamp || 'N/A';
+                document.getElementById('ctScanDetails').textContent = data.Scan_Details || 'N/A';
+                document.getElementById('ctResultsSummary').textContent = data.Results || 'N/A';
+                document.getElementById('ctCriticalFindings').textContent = data.Critical_Findings || 'N/A';
+            }
+        }
+
+        function resetModalDisplay(type) {
+             if (type === 'history') {
+                document.getElementById('historyTimestamp').textContent = 'N/A';
+                document.getElementById('historyDetails').textContent = 'N/A';
+                document.getElementById('historyMeds').textContent = 'N/A';
+                document.getElementById('historyAllergies').textContent = 'N/A';
+                document.getElementById('historyPrevStrokes').textContent = 'N/A';
+                medicalHistoryForm.reset(); // Clear the 'add new' form
+            } else if (type === 'ct') {
+                document.getElementById('ctTimestamp').textContent = 'N/A';
+                document.getElementById('ctScanDetails').textContent = 'N/A';
+                document.getElementById('ctResultsSummary').textContent = 'N/A';
+                document.getElementById('ctCriticalFindings').textContent = 'N/A';
+                ctResultsForm.reset(); // Clear the 'add new' form
+            }
+        }
+
+        // --- New Modal Form Submissions ---
+        medicalHistoryForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const selectedEmail = patientSelect.value;
+            if (!selectedEmail || selectedEmail === '') {
+                showAlert('Please select a patient first.', 'danger'); return;
+            }
+            const formData = new FormData(medicalHistoryForm);
+            const historyData = {};
+            formData.forEach((value, key) => { historyData[key] = value; });
+            historyData['patient_email'] = selectedEmail;
+
+            fetch('/api/save_medical_history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(historyData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('New medical history entry saved.', 'success');
+                    const modalInstance = bootstrap.Modal.getInstance(medicalHistoryModalElement);
+                    if(modalInstance) modalInstance.hide();
+                    // Optionally reload patient profile to show the new entry immediately
+                    loadPatientProfile(selectedEmail);
+                } else {
+                    showAlert(`Error saving history: ${data.message}`, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving history:', error);
+                showAlert(`Error saving history: ${error.message}`, 'danger');
+            });
+        });
+
+        ctResultsForm.addEventListener('submit', function(e) {
+             e.preventDefault();
+            const selectedEmail = patientSelect.value;
+            if (!selectedEmail || selectedEmail === '') {
+                showAlert('Please select a patient first.', 'danger'); return;
+            }
+            const formData = new FormData(ctResultsForm);
+            const ctData = {};
+            formData.forEach((value, key) => { ctData[key] = value; });
+            ctData['patient_email'] = selectedEmail;
+
+             fetch('/api/save_ct_results', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(ctData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('New CT result saved.', 'success');
+                    const modalInstance = bootstrap.Modal.getInstance(ctResultsModalElement);
+                     if(modalInstance) modalInstance.hide();
+                    // Optionally reload patient profile
+                    loadPatientProfile(selectedEmail);
+                } else {
+                    showAlert(`Error saving CT result: ${data.message}`, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving CT result:', error);
+                showAlert(`Error saving CT result: ${error.message}`, 'danger');
+            });
+        });
+
+        function saveNotes() {
+            const notes = document.getElementById('doctorNotes').value;
+            const selectedEmail = patientSelect.value;
+            if (!selectedEmail || selectedEmail === '') {
+                showAlert('Please select a patient first.', 'danger'); return;
+            }
+            fetch('/api/save_notes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ patient_email: selectedEmail, notes: notes })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showAlert('Notes saved successfully', 'success');
+                } else {
+                    showAlert(`Error saving notes: ${data.message}`, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving notes:', error);
+                showAlert(`Error saving notes: ${error.message}`, 'danger');
+            });
+        }
+
+        // Utility function to show alerts
+        function showAlert(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            // Use bootstrap alert classes
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show m-2`;
+            alertDiv.role = 'alert';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            alertContainer.appendChild(alertDiv);
+
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                 bootstrap.Alert.getOrCreateInstance(alertDiv)?.close();
+            }, 5000);
+        }
+
+        // --- tPA Verification Modal Logic (Revised) ---
+
+        // Function to reset the tPA verification form/modal elements
+        function resetTpaVerificationModal() {
+             tpaVerificationForm.reset(); // Reset radio buttons and input fields
+             tpaPatientActualAge.textContent = 'N/A';
+             const statuses = [tpaNihssStatus, tpaInrStatus, tpaHrStatus, tpaO2Status];
+             statuses.forEach(el => {
+                 if (el) {
+                     el.textContent = 'Verify';
+                     el.className = 'badge bg-secondary';
+                 }
+             });
+        }
+
+        // Add event listeners to inputs to check status and vitals on change
+        tpaNihssInput.addEventListener('input', () => {
+            checkTpaInputStatus(tpaNihssInput, tpaNihssStatus, score => score >= 4, '≥ 4', '< 4');
+        });
+         tpaInrInput.addEventListener('input', () => {
+            checkTpaInputStatus(tpaInrInput, tpaInrStatus, inr => inr <= 1.7, '≤ 1.7', '> 1.7');
+        });
+         tpaHrInput.addEventListener('input', () => {
+            const isNormal = checkTpaInputStatus(tpaHrInput, tpaHrStatus, hr => hr >= 60 && hr <= 100, 'Normal', 'Abnormal');
+            if (isNormal === false) {
+                 showAlert(`CRITICAL VITAL SIGN: Heart Rate (${tpaHrInput.value}) is outside normal range (60-100).`, 'warning');
+            }
+        });
+         tpaO2Input.addEventListener('input', () => {
+            const isNormal = checkTpaInputStatus(tpaO2Input, tpaO2Status, o2 => o2 >= 95, 'Normal', 'Low');
+             if (isNormal === false) {
+                 showAlert(`CRITICAL VITAL SIGN: O2 Saturation (${tpaO2Input.value}%) is below normal range (≥ 95%).`, 'warning');
+            }
+        });
+
+        // Helper to update status badge based on input value and criteria
+        function checkTpaInputStatus(inputElement, statusElement, criteriaFn, textMet, textNotMet) {
+            const valueStr = inputElement.value;
+            if (valueStr === '' || valueStr === null) {
+                statusElement.textContent = 'Verify';
+                statusElement.className = 'badge bg-secondary';
+                return null;
+            }
+            const value = Number(valueStr);
+            if (isNaN(value)) {
+                 statusElement.textContent = 'Invalid';
+                 statusElement.className = 'badge bg-warning text-dark';
+                 return null;
+            }
+
+            const met = criteriaFn(value);
+            statusElement.textContent = met ? textMet : textNotMet;
+            statusElement.className = met ? 'badge bg-success' : 'badge bg-danger';
+            return met; // Return boolean status
+        }
+
+    </script>
+</body>
+</html> 

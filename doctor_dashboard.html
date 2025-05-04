@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doctor Dashboard - MSU</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .sidebar {
+             background-color: #0d6efd; /* Doctor Blue */
+             color: white;
+             min-height: 100vh;
+             padding: 20px;
+         }
+        .sidebar a {
+            color: white;
+            text-decoration: none;
+            display: block;
+            padding: 10px 15px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+        .sidebar a:hover, .sidebar a.active {
+            background-color: #0b5ed7;
+        }
+         .sidebar .nav-icon { margin-right: 10px; }
+         .table th { white-space: nowrap; }
+         .action-btn { margin-left: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+             <!-- Sidebar -->
+             <nav class="col-md-2 sidebar d-none d-md-block">
+                 <h4 class="mb-4 mt-2"><i class="fas fa-user-md me-2"></i>Doctor Portal</h4>
+                <a href="{{ url_for('doctor_dashboard') }}" class="active"><i class="nav-icon fas fa-clipboard-list"></i>Review Assessments</a>
+                <!-- Add other doctor-specific links here -->
+                 <hr class="bg-light">
+                 <a href="{{ url_for('logout') }}"><i class="nav-icon fas fa-sign-out-alt"></i>Logout</a>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="col-md-10 ms-sm-auto px-md-4 py-4">
+                 <h2 class="mb-4">Pending Stroke Assessments for Review</h2>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category if category else 'info' }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Patient</th>
+                                <th>Email</th>
+                                <th>Assessment Time</th>
+                                <th>NIHSS</th>
+                                <th>BP</th>
+                                <th>HR</th>
+                                <th>O2 Sat</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if assessments %}
+                                {% for assessment in assessments %}
+                                <tr>
+                                    <td>{{ assessment.Patient_Name }}</td>
+                                    <td>{{ assessment.Patient_Email }}</td>
+                                    <td>{{ assessment.Timestamp | format_datetime if assessment.Timestamp else 'N/A' }}</td> <!-- Assuming a filter exists or just display raw -->
+                                    <td>{{ assessment.NIHSS_Score }}</td>
+                                    <td>{{ assessment.BP }}</td>
+                                    <td>{{ assessment.HR }}</td>
+                                    <td>{{ assessment.O2_Sat }}%</td>
+                                    <td>
+                                        <!-- Placeholder for actions -->
+                                        <button class="btn btn-sm btn-info action-btn" title="View Full Details" onclick="viewAssessmentDetails('{{ assessment.Patient_Email }}', '{{ assessment.Timestamp }}')"><i class="fas fa-eye"></i></button>
+                                        <button class="btn btn-sm btn-success action-btn" title="Approve & Prescribe" onclick="approveAssessment('{{ assessment.Patient_Email }}', '{{ assessment.Timestamp }}')"><i class="fas fa-check-circle"></i></button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="8" class="text-center">No pending assessments found.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Assessment Details Modal -->
+    <div class="modal fade" id="assessmentDetailsModal" tabindex="-1" aria-labelledby="assessmentDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl"> <!-- Use extra large modal -->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="assessmentDetailsModalLabel">Assessment Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="assessmentDetailContent">
+                        <p class="text-center">Loading details...</p>
+                    </div>
+                     <!-- Critical Alert Placeholder -->
+                     <div id="criticalPatientAlert" class="alert alert-danger mt-3 d-none" role="alert">
+                        <h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Critical Patient Status Alert!</h4>
+                        <p id="criticalAlertReason">Reasons will be listed here.</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                     <!-- Optional: Add button to trigger Approval Modal directly from here -->
+                     <!-- <button type="button" class="btn btn-success" onclick="triggerApprovalFromDetails()"><i class="fas fa-check-circle"></i> Approve & Prescribe</button> -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- End Assessment Details Modal -->
+
+    <!-- Approve Assessment Modal -->
+    <div class="modal fade" id="approveAssessmentModal" tabindex="-1" aria-labelledby="approveAssessmentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="approveAssessmentModalLabel">Approve Assessment & Prescribe Treatment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="approveAssessmentForm">
+                        <input type="hidden" id="approvePatientEmail" name="patient_email">
+                        <input type="hidden" id="approveTimestamp" name="timestamp">
+
+                        <p><strong>Patient:</strong> <span id="approvePatientName"></span></p>
+                        <p><strong>Assessment Time:</strong> <span id="approveAssessmentTime"></span></p>
+                        <p><strong>NIHSS Score:</strong> <span id="approveNihssScore"></span></p>
+                        <hr>
+                         <div class="mb-3">
+                             <label class="form-label">Approval Status</label>
+                             <div>
+                                 <div class="form-check form-check-inline">
+                                     <input class="form-check-input" type="radio" name="approval_status" id="statusApprove" value="Approved" required checked>
+                                     <label class="form-check-label" for="statusApprove">Approve</label>
+                                 </div>
+                                 <div class="form-check form-check-inline">
+                                     <input class="form-check-input" type="radio" name="approval_status" id="statusReject" value="Rejected" required>
+                                     <label class="form-check-label" for="statusReject">Reject (Add reason in notes)</label>
+                                 </div>
+                             </div>
+                         </div>
+                        <div class="mb-3">
+                            <label for="treatmentPrescribed" class="form-label">Treatment Prescribed</label>
+                            <textarea class="form-control" id="treatmentPrescribed" name="treatment" rows="3" placeholder="Enter prescribed treatment (e.g., tPA administration, dosage, supportive care...)"></textarea>
+                        </div>
+                         <div class="mb-3">
+                            <label for="doctorApprovalNotes" class="form-label">Doctor Notes (Optional, e.g., rejection reason)</label>
+                            <textarea class="form-control" id="doctorApprovalNotes" name="doctor_notes" rows="2" placeholder="Add any relevant notes..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" form="approveAssessmentForm" class="btn btn-success">Confirm Approval/Rejection</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- End Approve Assessment Modal -->
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Store modal instances
+    let detailsModal = null;
+    let approveModal = null;
+    document.addEventListener('DOMContentLoaded', function() {
+        if(document.getElementById('assessmentDetailsModal')){
+             detailsModal = new bootstrap.Modal(document.getElementById('assessmentDetailsModal'));
+        }
+        if(document.getElementById('approveAssessmentModal')){
+            approveModal = new bootstrap.Modal(document.getElementById('approveAssessmentModal'));
+        }
+    });
+
+    async function viewAssessmentDetails(patientEmail, timestamp) {
+        const contentDiv = document.getElementById('assessmentDetailContent');
+        const alertDiv = document.getElementById('criticalPatientAlert');
+        const alertReason = document.getElementById('criticalAlertReason');
+        contentDiv.innerHTML = '<p class="text-center">Loading details...</p>'; // Show loading state
+        alertDiv.classList.add('d-none'); // Hide alert initially
+        alertReason.innerHTML = '';
+
+        if(detailsModal) detailsModal.show();
+
+        try {
+            // Fetch details from a new API endpoint (or enhance existing one)
+            const response = await fetch(`/api/get_assessment_details/${patientEmail}/${encodeURIComponent(timestamp)}`);
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                const data = result.data;
+                // Format and display data nicely in contentDiv
+                let html = `<h4>Patient: ${data.patient?.First_Name || ''} ${data.patient?.Last_Name || ''} (${patientEmail})</h4>`;
+                html += `<p>DOB: ${data.patient?.DOB || 'N/A'} | Sex: ${data.patient?.Sex || 'N/A'}</p>`;
+                html += `<hr>`;
+                html += `<h5>Assessment (${data.assessment?.Timestamp || timestamp})</h5>`;
+                html += `<p><strong>NIHSS Score:</strong> ${data.assessment?.NIHSS_Score || 'N/A'}</p>`;
+                html += `<p><strong>Vitals:</strong> BP: ${data.assessment?.BP || 'N/A'}, HR: ${data.assessment?.HR || 'N/A'}, O2 Sat: ${data.assessment?.O2_Sat || 'N/A'}%</p>`;
+                html += `<p><strong>Technician Notes:</strong> ${data.assessment?.Assessment_Notes || 'None'}</p>`;
+                html += `<hr>`;
+                // Optionally add latest history/CT summary
+                if (data.history) {
+                     html += `<h6>Latest History (${data.history.Timestamp})</h6><p>${data.history.Medical_History || ''}</p>`;
+                }
+                 if (data.ct_result) {
+                     html += `<h6>Latest CT (${data.ct_result.Timestamp})</h6><p>${data.ct_result.Results || ''} ${data.ct_result.Critical_Findings ? `<strong>Critical:</strong> ${data.ct_result.Critical_Findings}` : ''}</p>`;
+                }
+                contentDiv.innerHTML = html;
+
+                // --- Critical Alert Check --- 
+                let criticalReasons = [];
+                const score = parseInt(data.assessment?.NIHSS_Score);
+                const hr = parseInt(data.assessment?.HR);
+                const o2 = parseInt(data.assessment?.O2_Sat);
+                // Example critical thresholds (adjust as needed)
+                if (!isNaN(score) && score > 15) criticalReasons.push(`High NIHSS Score (${score})`);
+                if (!isNaN(hr) && (hr < 60 || hr > 100)) criticalReasons.push(`Abnormal Heart Rate (${hr} bpm)`);
+                if (!isNaN(o2) && o2 < 95) criticalReasons.push(`Low O2 Saturation (${o2}%)`);
+                // Add check for hemorrhage from CT if needed
+                if (data.ct_result && (data.ct_result.Results?.toLowerCase().includes('hemorrhage') || data.ct_result.Critical_Findings?.toLowerCase().includes('hemorrhage'))) {
+                     criticalReasons.push('Potential Hemorrhage detected in CT Results.');
+                }
+
+                if (criticalReasons.length > 0) {
+                    alertReason.innerHTML = '<li>' + criticalReasons.join('</li><li>') + '</li>';
+                    alertDiv.classList.remove('d-none');
+                } else {
+                    alertDiv.classList.add('d-none');
+                }
+
+            } else {
+                contentDiv.innerHTML = `<p class="text-danger">Error loading details: ${result.message}</p>`;
+            }
+        } catch (error) {
+            console.error('Error fetching assessment details:', error);
+            contentDiv.innerHTML = `<p class="text-danger">Failed to load details: ${error.message}</p>`;
+        }
+    }
+
+    function approveAssessment(patientEmail, timestamp) {
+         // Populate the approval modal with basic info
+         document.getElementById('approvePatientEmail').value = patientEmail;
+         document.getElementById('approveTimestamp').value = timestamp;
+         // Fetch minimal data again or get from table row if possible
+         const row = document.querySelector(`button[onclick*="${timestamp}"]`).closest('tr');
+         if(row){
+            document.getElementById('approvePatientName').textContent = row.cells[0].textContent;
+            document.getElementById('approveAssessmentTime').textContent = row.cells[2].textContent;
+            document.getElementById('approveNihssScore').textContent = row.cells[3].textContent;
+         }
+        document.getElementById('approveAssessmentForm').reset(); // Reset form fields
+        if(approveModal) approveModal.show();
+    }
+
+    // Handle submission of the approval form
+    document.getElementById('approveAssessmentForm')?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+
+        fetch('/api/approve_assessment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.status === 'success') {
+                alert('Assessment status updated successfully!'); // Use bootstrap alert later if preferred
+                if(approveModal) approveModal.hide();
+                window.location.reload(); // Refresh page to update pending list
+            } else {
+                alert(`Error updating status: ${result.message}`);
+            }
+        })
+        .catch(err => {
+             console.error('Approval API Error:', err);
+             alert('An error occurred while updating the assessment.');
+        });
+    });
+
+</script>
+</body>
+</html> 

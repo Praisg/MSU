@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Appointment System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar p-4">
+                <div class="position-sticky">
+                    <h4><i class="fas fa-user-circle me-2"></i>{{ user['First_Name'] }} {{ user['Last_Name'] }}</h4>
+                    <h6><i class="fas fa-venus-mars me-2"></i>{{ user['Sex'] }}</h6>
+                    <h6><i class="fas fa-birthday-cake me-2"></i>{{ user['DOB'] }}</h6>
+                    <hr>
+                    <div class="mb-3">
+                        <button class="btn btn-link text-decoration-none" data-bs-toggle="collapse" data-bs-target="#profileForm">
+                            <i class="fas fa-edit me-2"></i>Edit Profile
+                        </button>
+                    </div>
+                    <!-- Remove Stroke Profile Link/Button -->
+                    <!--
+                    <div class="mb-3">
+                         <a href="{{ url_for('stroke_profile') }}" class="btn btn-info w-100">
+                            <i class="fas fa-notes-medical me-2"></i>Stroke Patient Profile
+                        </a>
+                    </div>
+                    -->
+                    <div class="mb-3">
+                        <a href="{{ url_for('logout') }}" class="btn btn-danger w-100"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
+                    </div>
+
+                    <!-- Profile Edit Form -->
+                    <div class="collapse mt-3" id="profileForm">
+                        <form method="POST" action="{{ url_for('update_profile') }}">
+                            <div class="mb-3">
+                                <label for="edit_first_name" class="form-label">First Name</label>
+                                <input type="text" class="form-control" id="edit_first_name" name="first_name"
+                                       value="{{ user['First_Name'] }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_last_name" class="form-label">Last Name</label>
+                                <input type="text" class="form-control" id="edit_last_name" name="last_name"
+                                       value="{{ user['Last_Name'] }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_mobile" class="form-label">Mobile</label>
+                                <input type="tel" class="form-control" id="edit_mobile" name="mobile"
+                                       value="{{ user['Mobile_Number'] }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_address" class="form-label">Address</label>
+                                <textarea class="form-control" id="edit_address" name="address"
+                                          rows="3" required>{{ user['Address'] }}</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_dob" class="form-label">Date of Birth</label>
+                                <input type="date" class="form-control" id="edit_dob" name="dob" value="{{ user['DOB'] }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_sex" class="form-label">Sex</label>
+                                <select class="form-select" id="edit_sex" name="sex" required>
+                                    <option value="Male" {% if user['Sex'] == 'Male' %}selected{% endif %}>Male</option>
+                                    <option value="Female" {% if user['Sex'] == 'Female' %}selected{% endif %}>Female</option>
+                                    <option value="Other" {% if user['Sex'] == 'Other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Update Profile</button>
+                        </form>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <h2>Your Appointments</h2>
+                {% if appointments %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-user-md me-2"></i>Doctor</th>
+                                    <th><i class="fas fa-clock me-2"></i>Time</th>
+                                    <th><i class="fas fa-calendar-alt me-2"></i>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for appointment in appointments %}
+                                <tr>
+                                    <td>{{ appointment.Doctor }}</td>
+                                    <td>{{ appointment.Time }}</td>
+                                    <td class="fw-bold text-primary">{{ appointment.Date }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p>No appointments scheduled.</p>
+                {% endif %}
+
+                <!-- Book New Appointment Section -->
+                <h3 class="mt-4">Book New Appointment</h3>
+                <form method="POST" action="{{ url_for('book_appointment') }}" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="doctor" class="form-label">Select Doctor</label>
+                        <select class="form-select" id="doctor" name="doctor" required>
+                            <option value="">Choose...</option>
+                            {% for doctor in doctors %}
+                                <option value="{{ doctor }}">{{ doctor }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="appointment_date" class="form-label">Select Date</label>
+                        <input type="date" class="form-control" id="appointment_date" name="appointment_date" required disabled>
+                        <div class="invalid-feedback">Please select a valid weekday within the next 30 days.</div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="time_slot" class="form-label">Select Time</label>
+                        <select class="form-select" id="time_slot" name="time_slot" required disabled>
+                            <option value="">Choose date first</option>
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">Book Appointment</button>
+                    </div>
+                </form>
+
+                <!-- Display Patient History and Reports -->
+                <hr class="my-5">
+                <h2 class="mb-4">Your Health Records</h2>
+
+                <div class="accordion" id="healthRecordsAccordion">
+
+                    <!-- Medical History Section -->
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingHistory">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseHistory" aria-expanded="false" aria-controls="collapseHistory">
+                            <i class="fas fa-notes-medical me-2"></i> Medical History
+                        </button>
+                        </h2>
+                        <div id="collapseHistory" class="accordion-collapse collapse" aria-labelledby="headingHistory" data-bs-parent="#healthRecordsAccordion">
+                        <div class="accordion-body">
+                            {% if medical_history %}
+                                {% for entry in medical_history %}
+                                    <div class="card mb-2">
+                                        <div class="card-body">
+                                            <h6 class="card-subtitle mb-2 text-muted">Recorded: {{ entry.Timestamp }}</h6>
+                                            <p><strong>Summary:</strong> {{ entry.Medical_History }}</p>
+                                            <p><strong>Medications:</strong> {{ entry.Current_Medications or 'N/A' }}</p>
+                                            <p><strong>Allergies:</strong> {{ entry.Allergies or 'N/A' }}</p>
+                                            <p><strong>Previous Strokes:</strong> {{ entry.Previous_Strokes or 'N/A' }}</p>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <p>No medical history recorded.</p>
+                            {% endif %}
+                        </div>
+                        </div>
+                    </div>
+
+                    <!-- Stroke Assessments Section -->
+                     <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingAssessments">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAssessments" aria-expanded="false" aria-controls="collapseAssessments">
+                           <i class="fas fa-clipboard-check me-2"></i> Stroke Assessments
+                        </button>
+                        </h2>
+                        <div id="collapseAssessments" class="accordion-collapse collapse" aria-labelledby="headingAssessments" data-bs-parent="#healthRecordsAccordion">
+                        <div class="accordion-body">
+                             {% if stroke_assessments %}
+                                {% for entry in stroke_assessments %}
+                                    <div class="card mb-2">
+                                        <div class="card-body">
+                                             <h6 class="card-subtitle mb-2 text-muted">Assessed: {{ entry.Timestamp }} (Score: {{ entry.NIHSS_Score }})</h6>
+                                             <p><strong>Vitals:</strong> BP: {{ entry.BP or 'N/A' }}, HR: {{ entry.HR or 'N/A' }}, O2: {{ entry.O2_Sat or 'N/A' }}%</p>
+                                             <p><strong>Technician Notes:</strong> {{ entry.Assessment_Notes or 'None' }}</p>
+                                              {% if entry.Doctor_Approval_Status == 'Approved' %}
+                                                 <p class="text-success"><i class="fas fa-check-circle me-1"></i><strong>Doctor Review:</strong> Approved by {{ entry.Approving_Doctor_ID }}</p>
+                                                 <p><strong>Treatment:</strong> {{ entry.Treatment_Prescribed or 'N/A' }}</p>
+                                              {% elif entry.Doctor_Approval_Status == 'Pending' %}
+                                                  <p class="text-warning"><i class="fas fa-hourglass-half me-1"></i> Pending Doctor Review</p>
+                                              {% endif %}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <p>No stroke assessments recorded.</p>
+                            {% endif %}
+                        </div>
+                        </div>
+                    </div>
+
+                     <!-- CT Results Section -->
+                     <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingCtResults">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCtResults" aria-expanded="false" aria-controls="collapseCtResults">
+                           <i class="fas fa-x-ray me-2"></i> CT Scan Results
+                        </button>
+                        </h2>
+                        <div id="collapseCtResults" class="accordion-collapse collapse" aria-labelledby="headingCtResults" data-bs-parent="#healthRecordsAccordion">
+                        <div class="accordion-body">
+                            {% if ct_results %}
+                                {% for entry in ct_results %}
+                                    <div class="card mb-2">
+                                        <div class="card-body">
+                                            <h6 class="card-subtitle mb-2 text-muted">Scanned: {{ entry.Timestamp }}</h6>
+                                            <p><strong>Scan Details:</strong> {{ entry.Scan_Details }}</p>
+                                            <p><strong>Results:</strong> {{ entry.Results }}</p>
+                                            <p><strong>Critical Findings:</strong> {{ entry.Critical_Findings or 'None' }}</p>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <p>No CT results recorded.</p>
+                            {% endif %}
+                        </div>
+                        </div>
+                    </div>
+
+                    <!-- Doctor Notes Section -->
+                     <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingNotes">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNotes" aria-expanded="false" aria-controls="collapseNotes">
+                            <i class="fas fa-user-md me-2"></i> Doctor Notes
+                        </button>
+                        </h2>
+                        <div id="collapseNotes" class="accordion-collapse collapse" aria-labelledby="headingNotes" data-bs-parent="#healthRecordsAccordion">
+                        <div class="accordion-body">
+                           {% if doctor_notes %}
+                                {% for entry in doctor_notes %}
+                                    <div class="card mb-2">
+                                        <div class="card-body">
+                                             <h6 class="card-subtitle mb-2 text-muted">Noted: {{ entry.Timestamp }} by Dr. {{ entry.Doctor_ID }}</h6>
+                                             <p>{{ entry.Notes }}</p>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <p>No doctor notes recorded.</p>
+                            {% endif %}
+                        </div>
+                        </div>
+                    </div>
+                </div> <!-- End Accordion -->
+
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Set up date constraints
+        const dateInput = document.getElementById('appointment_date');
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const maxDate = new Date();
+        maxDate.setDate(maxDate.getDate() + 30);
+
+        // Format dates for input
+        dateInput.min = tomorrow.toISOString().split('T')[0];
+        dateInput.max = maxDate.toISOString().split('T')[0];
+
+        document.getElementById('doctor').addEventListener('change', function() {
+            const dateInput = document.getElementById('appointment_date');
+            const timeSelect = document.getElementById('time_slot');
+
+            if (this.value) {
+                dateInput.disabled = false;
+            } else {
+                dateInput.disabled = true;
+                dateInput.value = '';
+                timeSelect.disabled = true;
+                timeSelect.innerHTML = '<option value="">Choose date first</option>';
+            }
+        });
+
+        document.getElementById('appointment_date').addEventListener('change', function() {
+            const doctor = document.getElementById('doctor').value;
+            const timeSelect = document.getElementById('time_slot');
+            const selectedDate = new Date(this.value);
+
+            // Check if selected date is a weekday (0 = Sunday, 6 = Saturday)
+            if (selectedDate.getDay() === 0 || selectedDate.getDay() === 6) {
+                this.classList.add('is-invalid');
+                timeSelect.disabled = true;
+                timeSelect.innerHTML = '<option value="">Choose a valid date first</option>';
+                return;
+            }
+
+            this.classList.remove('is-invalid');
+
+            if (this.value && doctor) {
+                timeSelect.disabled = false;
+                fetch(`/get_available_slots/${doctor}/${this.value}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        timeSelect.innerHTML = '<option value="">Choose time...</option>';
+                        if (data.slots && data.slots.length > 0) {
+                            data.slots.forEach(slot => {
+                                const option = document.createElement('option');
+                                option.value = slot;
+                                option.textContent = slot;
+                                timeSelect.appendChild(option);
+                            });
+                        } else {
+                            timeSelect.innerHTML = '<option value="">No slots available</option>';
+                            timeSelect.disabled = true;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching slots:', error);
+                        timeSelect.innerHTML = '<option value="">Error loading slots</option>';
+                        timeSelect.disabled = true;
+                    });
+            } else {
+                timeSelect.disabled = true;
+                timeSelect.innerHTML = '<option value="">Choose doctor and date first</option>';
+            }
+        });
+    </script>
+</body>
+</html>
